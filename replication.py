@@ -21,9 +21,13 @@ import json
 import genquery  # type: ignore
 import irods_errors  # type: ignore
 import irods_extra
+import session_vars  # type: ignore
 import throttle
 
 
+_HOST_COLL_ATTR = 'ipc::hosted-collection'
+_HOST_COLL_UNIT_FORCE = 'forced'
+_HOST_COLL_UNIT_PREF = 'preferred'
 _REPL_RESC_ATTR = 'cyverse::replica-resource'
 
 
@@ -165,9 +169,37 @@ def _try_sync_replicas(data_path, cb):
         _sched_sync_replicas(_query_data_id(data_path, cb), cb)
 
 
-def acSetRescSchemeForCreate(_rule_args, cb, _):
-    """Use the default resource as primary replica."""
-    ret = cb.msiSetDefaultResc(irods_extra.default_resc(), 'forced')
+def acSetRescSchemeForCreate(_, cb, rei):
+    """Select the resource selection scheme for a new data object's replica.
+
+    Use the value of the ipc::hosted-collection resource AVU to determine which
+    resource to use for the replica of a new data object. If the unit is
+    'forced', the caller is not allowed to override the chosen resource.
+    """
+    data_path = session_vars.get_map(rei).get('data_object').get('object_path')
+    residency = _HOST_COLL_UNIT_PREF
+    resc = irods_extra.default_resc()
+
+    cols = (
+        'ORDER_DESC(META_RESC_ATTR_VALUE)',
+        'META_RESC_ATTR_UNITS',
+        'RESC_NAME')
+
+    for rec in genquery.Query(
+        cb, cols, "META_RESC_ATTR_NAME = '{}'".format(_HOST_COLL_ATTR)
+    ):
+        if (data_path.startswith(rec[0])):
+            residency = rec[1].lower()
+            resc = rec[2]
+
+            # Since the results are sorted lexicographically by hosted
+            # collection path in descending order, the first match is the most
+            # specific match. We can stop looking.
+            break
+
+    ret = cb.msiSetDefaultResc(
+        resc, 'forced' if residency == _HOST_COLL_UNIT_FORCE else 'preferred')
+
     return ret['code']
 
 
