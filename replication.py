@@ -200,6 +200,12 @@ def acSetRescSchemeForCreate(_, cb, rei):
     ret = cb.msiSetDefaultResc(
         resc, 'forced' if residency == _HOST_COLL_UNIT_FORCE else 'preferred')
 
+    if not ret['status']:
+        msg = 'failed to set resource scheme to {} {} ({})'.forced(
+            resc, residency, ret['code'])
+
+        cb.writeLine('serverLog', msg)
+
     return ret['code']
 
 
