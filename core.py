@@ -11,7 +11,7 @@ import throttle
 
 import checksum
 import replication
-
+import service
 
 # required for delayExec executions
 from replication import replicate, sync_replicas  # pyright: ignore
@@ -40,6 +40,16 @@ def _compose_rules(
                 break
 
     return resp
+
+
+def acCreateUser(*args):
+    """Compose rules that bind to the PEP acCreateUser.
+
+    Execute all the rules that bind to this PEP in the order provided. If all
+    of them succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule
+    engines can apply policy.
+    """
+    return _compose_rules([service], *args, fail_resp=None, cont_on_fail=True)
 
 
 def acSetRescSchemeForCreate(*args):
