@@ -2,8 +2,10 @@
 
 """CyVerse-wide service account policy."""
 
-import irods_extra
+import irods_errors  # type: ignore
 import session_vars  # type: ignore
+
+import irods_extra
 
 
 _SVC_TYPE = 'service'
@@ -24,6 +26,7 @@ def acCreateUser(_, cb, rei):
             cb.msiRollback()
             return res['code']
 
-        res = cb.msiCommit()
+        cb.msiCommit()
+        return irods_extra.SUCCESS
 
-    return irods_extra.SUCCESS
+    return irods_errors.RULE_ENGINE_CONTINUE
