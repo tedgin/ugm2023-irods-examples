@@ -20,15 +20,10 @@ import json
 
 import genquery  # type: ignore
 import irods_errors  # type: ignore
+
 import irods_extra
-import session_vars  # type: ignore
+import residency
 import throttle
-
-
-_HOST_COLL_ATTR = 'ipc::hosted-collection'
-_HOST_COLL_UNIT_FORCE = 'forced'
-_HOST_COLL_UNIT_PREF = 'preferred'
-_REPL_RESC_ATTR = 'cyverse::replica-resource'
 
 
 def _query_data_id(data_path, cb):
@@ -51,16 +46,6 @@ def _query_data_path(data_id, cb):
         genquery.AS_LIST
     ):
         return "{}/{}".format(*rec)
-
-    return None
-
-
-def _query_repl_resc(resc, cb):
-    cond = "RESC_NAME = '{}' and META_RESC_ATTR_NAME = '{}'".format(
-        resc, _REPL_RESC_ATTR)
-
-    for rec in genquery.Query(cb, 'META_RESC_ATTR_VALUE', cond):
-        return rec
 
     return None
 
@@ -169,46 +154,6 @@ def _try_sync_replicas(data_path, cb):
         _sched_sync_replicas(_query_data_id(data_path, cb), cb)
 
 
-def acSetRescSchemeForCreate(_, cb, rei):
-    """Select the resource selection scheme for a new data object's replica.
-
-    Use the value of the ipc::hosted-collection resource AVU to determine which
-    resource to use for the replica of a new data object. If the unit is
-    'forced', the caller is not allowed to override the chosen resource.
-    """
-    data_path = session_vars.get_map(rei).get('data_object').get('object_path')
-    residency = _HOST_COLL_UNIT_PREF
-    resc = irods_extra.default_resc()
-
-    cols = (
-        'ORDER_DESC(META_RESC_ATTR_VALUE)',
-        'META_RESC_ATTR_UNITS',
-        'RESC_NAME')
-
-    for rec in genquery.Query(
-        cb, cols, "META_RESC_ATTR_NAME = '{}'".format(_HOST_COLL_ATTR)
-    ):
-        if (data_path.startswith(rec[0])):
-            residency = rec[1].lower()
-            resc = rec[2]
-
-            # Since the results are sorted lexicographically by hosted
-            # collection path in descending order, the first match is the most
-            # specific match. We can stop looking.
-            break
-
-    ret = cb.msiSetDefaultResc(
-        resc, 'forced' if residency == _HOST_COLL_UNIT_FORCE else 'preferred')
-
-    if not ret['status']:
-        msg = 'failed to set resource scheme to {} {} ({})'.forced(
-            resc, residency, ret['code'])
-
-        cb.writeLine('serverLog', msg)
-
-    return ret['code']
-
-
 def async_api_bulk_data_obj_put_post(rule_args, cb, _):
     """Ensure bulk uploaded data objects have two good replicas.
 
@@ -220,7 +165,7 @@ def async_api_bulk_data_obj_put_post(rule_args, cb, _):
     boi = json.loads(rule_args[2])
     opts = boi['condInput']
 
-    repl_resc = _query_repl_resc(
+    repl_resc = residency.get_repl_resc(
         irods_extra.root_resc(irods_extra.value(opts, 'resc_hier')), cb)
 
     objs = [
@@ -261,7 +206,7 @@ def pep_api_data_obj_copy_post(rule_args, cb, _):
     dest_path = str(dest_obj.objPath)
 
     if irods_extra.value(dest_opts, 'openType') == irods_extra.FILE_CREATE:
-        repl_resc = _query_repl_resc(
+        repl_resc = residency.get_repl_resc(
             irods_extra.root_resc(irods_extra.value(dest_opts, 'resc_hier')),
             cb)
 
@@ -284,7 +229,7 @@ def pep_api_data_obj_put_post(rule_args, cb, _):
     path = str(doi.objPath)
 
     if irods_extra.value(opts, 'openType') == irods_extra.FILE_CREATE:
-        repl_resc = _query_repl_resc(
+        repl_resc = residency.get_repl_resc(
             irods_extra.root_resc(irods_extra.value(opts, 'resc_hier')), cb)
 
         if repl_resc:
@@ -309,7 +254,7 @@ def pep_api_phy_path_reg_post(rule_args, cb, _):
     if irods_extra.has_key(opts, 'regRepl'):  # noqa
         _sched_sync_replicas(_query_data_id(path, cb), cb)
     else:
-        repl_resc = _query_repl_resc(
+        repl_resc = residency.get_repl_resc(
             irods_extra.root_resc(irods_extra.value(opts, 'resc_hier')), cb)
 
         if repl_resc:
@@ -342,7 +287,8 @@ def pep_api_touch_post(rule_args, cb, _):
 
         for rec in genquery.Query(cb, cols, cond):
             if rec[1] == rec[2]:
-                repl_resc = _query_repl_resc(irods_extra.root_resc(rec[3]), cb)
+                repl_resc = residency.get_repl_resc(
+                    irods_extra.root_resc(rec[3]), cb)
 
                 if repl_resc:
                     _sched_replication(rec[0], repl_resc, cb)
@@ -455,7 +401,7 @@ def pep_api_data_obj_write_post(*_):
 def pep_api_data_obj_close_post(_rule_args, cb, _):
     """See data_obj_create and data_obj_open for more details."""
     if __write_props['created']:
-        repl_resc = _query_repl_resc(
+        repl_resc = residency.get_repl_resc(
             irods_extra.root_resc(__write_props['resc_hier']), cb)
 
         if repl_resc:
@@ -477,7 +423,7 @@ def pep_api_data_obj_close_finally(*_):
 def pep_api_replica_close_post(_rule_args, cb, _):  # pyright: ignore
     """See replica_open for details."""
     if __write_props['created']:
-        repl_resc = _query_repl_resc(
+        repl_resc = residency.get_repl_resc(
             irods_extra.root_resc(__write_props['resc_hier']), cb)
 
         if repl_resc:

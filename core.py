@@ -11,6 +11,7 @@ import throttle
 
 import checksum
 import replication
+import residency
 import service
 
 # required for delayExec executions
@@ -61,7 +62,7 @@ def acSetRescSchemeForCreate(*args):
     other rule engines need to be tried.
     """
     return _compose_rules(
-        [replication], *args, success_resp=_RE_DONE, fail_resp=None)
+        [residency], *args, success_resp=_RE_DONE, fail_resp=None)
 
 
 def pep_api_data_obj_copy_post(*args):
