@@ -20,6 +20,7 @@ _RESIDENCY_PREF = 'preferred'
 
 
 def get_repl_resc(resc, cb):
+    # TODO document
     cond = "RESC_NAME = '{}' and META_RESC_ATTR_NAME = '{}'".format(
         resc, _REPL_RESC_ATTR)
 
@@ -30,7 +31,7 @@ def get_repl_resc(resc, cb):
 
 
 def acSetRescSchemeForCreate(_, cb, rei):
-    """Select the resource selection scheme for a new data object's replica.
+    """Set the resource selection scheme for a new data object's replica.
 
     Use the value of the ipc::hosted-collection resource AVU to determine which
     resource to use for the replica of a new data object. If the unit is
@@ -70,5 +71,5 @@ def acSetRescSchemeForCreate(_, cb, rei):
 
 
 def acSetRescSchemeForRepl(_, cb, rei):
-    # TODO implement
+    """Set the resource selection scheme for relication."""
     return irods_extra.SUCCESS
