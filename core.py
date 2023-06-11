@@ -65,6 +65,11 @@ def acSetRescSchemeForCreate(*args):
         [residency], *args, success_resp=_RE_DONE, fail_resp=None)
 
 
+def acSetRescSchemeForRepl(*args):
+    """Compose rules that bind to the PEP acSetRescSchemeForCrate."""
+    return _compose_rules([residency], *args)
+
+
 def pep_api_data_obj_copy_post(*args):
     """Compose rules that bind to the PEP pep_api_data_obj_copy_post.
 

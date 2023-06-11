@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-"""CyVerse data residency policy"""
+"""CyVerse data residency policy
+
+TODO explain how it works.
+"""
 
 import genquery  # type: ignore
 import session_vars  # type: ignore
@@ -10,7 +13,7 @@ import irods_extra
 
 _HOST_COLL_ATTR = 'ipc::hosted-collection'
 
-_REPL_RESC_ATTR = 'cyverse::replica-resource'
+_REPL_RESC_ATTR = 'ipc::replica-resource'
 
 _RESIDENCY_FORCE = 'forced'
 _RESIDENCY_PREF = 'preferred'
@@ -64,3 +67,8 @@ def acSetRescSchemeForCreate(_, cb, rei):
         cb.writeLine('serverLog', msg)
 
     return ret['code']
+
+
+def acSetRescSchemeForRepl(_, cb, rei):
+    # TODO implement
+    return irods_extra.SUCCESS
