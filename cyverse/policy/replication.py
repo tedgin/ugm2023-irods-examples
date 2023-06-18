@@ -16,16 +16,16 @@ NOTE: This rule base assumes that every replica has a checksum, so the
 corresponding checksum rules should be successfully executed first.
 """
 
-import json
-
 import genquery  # type: ignore
 import irods_errors  # type: ignore
-
-import irods_extra
-import residency
-import throttle
+import json
 
 from yoda import rule
+
+from .. import irods_extra
+from .. import throttle
+
+import residency
 
 
 def _query_data_id(ctx, data_path):
@@ -155,8 +155,10 @@ def _try_sync_replicas(ctx, data_path):
         _sched_sync_replicas(ctx, _query_data_id(ctx, data_path))
 
 
-rule.make(inputs=[0,1,2,3])
-def async_api_bulk_data_obj_put_post(ctx, _instance, _comm, bulk_opr_inp_json, _):  # pyright: ignore
+@rule.make(inputs=[0,1,2,3])
+def async_api_bulk_data_obj_put_post(
+    ctx, _instance, _comm, bulk_opr_inp_json, _  # pyright: ignore
+):
     """Ensure bulk uploaded data objects have two good replicas.
 
     Every replica created by bulk upload, gets replicated, and every one that
@@ -196,7 +198,7 @@ def async_api_bulk_data_obj_put_post(ctx, _instance, _comm, bulk_opr_inp_json, _
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2,3])
+@rule.make(inputs=[0,1,2,3])
 def pep_api_data_obj_copy_post(ctx, _instance, _comm, data_obj_copy_inp, _):  # pyright: ignore
     """Ensure data object created or modified by copying has two good replicas.
 
@@ -220,10 +222,8 @@ def pep_api_data_obj_copy_post(ctx, _instance, _comm, data_obj_copy_inp, _):  # 
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2,3], outputs=[5])
-def pep_api_data_obj_put_post(
-    ctx, _instance, _comm, data_obj_inp, _data_obj_inp_b_buf, _  # pyright: ignore
-):
+@rule.make(inputs=[0,1,2,3], outputs=[4])
+def pep_api_data_obj_put_post(ctx, _instance, _comm, data_obj_inp, _):  # pyright: ignore
     """Ensure data object created or modified by upload has two good replicas.
 
     A replica created this way gets asynchrounously replicated. One modified
@@ -244,7 +244,7 @@ def pep_api_data_obj_put_post(
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_phy_path_reg_post(ctx, _instance, _, phy_path_reg_inp):  # pyright: ignore
     """Ensure replic added through registration has an up-to-date peer replica.
 
@@ -267,7 +267,7 @@ def pep_api_phy_path_reg_post(ctx, _instance, _, phy_path_reg_inp):  # pyright: 
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_touch_post(ctx, _instance, _, json_input):  # pyright: ignore
     """Ensure replica created through touching, gets replicated."""
     inp = json.loads(str(json_input.buf))
@@ -311,7 +311,7 @@ def pep_api_touch_post(ctx, _instance, _, json_input):  # pyright: ignore
 __write_props = {}
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_create_post(_ctx, _instance, _, data_obj_inp):  # pyright: ignore
     """Ensure data object added through creation has two up-to-date replicas.
 
@@ -333,7 +333,7 @@ def pep_api_data_obj_create_post(_ctx, _instance, _, data_obj_inp):  # pyright: 
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_open_post(_ctx, _instance, _, data_obj_inp):  # pyright: ignore
     """Ensure data object editted by writing has two up-to-date replicas.
 
@@ -365,8 +365,8 @@ def pep_api_data_obj_open_post(_ctx, _instance, _, data_obj_inp):  # pyright: ig
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2], outputs=[3])
-def pep_api_replica_open_post(_ctx, _instance, _comm, data_obj_inp, _):  # pyright: ignore
+@rule.make(inputs=[0,1,2], outputs=[3])
+def pep_api_replica_open_post(_ctx, _instance, _, data_obj_inp):  # pyright: ignore
     """Ensure data object editted by replica API has two up-to-date replicas.
 
     If a data object was created, replica its original replica. If a data
@@ -397,7 +397,7 @@ def pep_api_replica_open_post(_ctx, _instance, _comm, data_obj_inp, _):  # pyrig
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2,3])
+@rule.make(inputs=[0,1,2,3])
 def pep_api_data_obj_write_post(
     _ctx, _instance, _comm, _data_obj_write_inp, _  # pyright: ignore
 ):
@@ -405,7 +405,7 @@ def pep_api_data_obj_write_post(
     __write_props['modified'] = True
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_close_post(ctx, _instance, _comm, _):  # pyright: ignore
     """See data_obj_create and data_obj_open for more details."""
     if __write_props['created']:
@@ -424,14 +424,14 @@ def pep_api_data_obj_close_post(ctx, _instance, _comm, _):  # pyright: ignore
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_close_finally(_ctx, _instance, _comm, _):  # pyright: ignore
     """Reset __write_props in case it's needed again in the current session."""
     __write_props.clear()
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_replica_close_post(ctx, _instance, _, json_input):  # pyright: ignore
     """See replica_open for details."""
     if __write_props['created']:
@@ -450,7 +450,7 @@ def pep_api_replica_close_post(ctx, _instance, _, json_input):  # pyright: ignor
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_replica_close_post(ctx, _instance, _comm, _):  # pyright: ignore
     """Reset __write_props in case it's needed again in this session."""
     __write_props.clear()

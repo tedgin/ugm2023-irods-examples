@@ -25,9 +25,9 @@ other value means the choice can be overridden.
 import genquery  # type: ignore
 import session_vars  # type: ignore
 
-import irods_extra
-
 from yoda import rule
+
+from .. import irods_extra
 
 
 _HOST_COLL_ATTR = 'ipc::hosted-collection'

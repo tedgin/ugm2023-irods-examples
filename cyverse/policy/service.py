@@ -9,8 +9,9 @@ collection, and it is not a member of the public group.
 import irods_errors  # type: ignore
 import session_vars  # type: ignore
 
-import irods_extra
-import rule
+from yoda import rule
+
+from .. import irods_extra
 
 
 _SVC_TYPE = 'ds-service'

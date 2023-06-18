@@ -5,13 +5,12 @@
 This module ensures that every replica of every data object has a checksum.
 """
 
+import genquery  # type: ignore
 import json
 
-import genquery  # type: ignore
-
-import irods_extra
-
 from yoda import rule
+
+from .. import irods_extra
 
 
 def _ensure_replicas_checksum(ctx, data_path, resc_hier=""):
@@ -53,8 +52,10 @@ def _ensure_replicas_checksum(ctx, data_path, resc_hier=""):
         return res
 
 
-rule.make(inputs=[0,1,2,3])
-def async_api_bulk_data_obj_put_post(ctx, _instance, _comm, bulk_opr_inp_json, _):  # pyright: ignore
+@rule.make(inputs=[0,1,2,3])
+def async_api_bulk_data_obj_put_post(
+    ctx, _instance, _comm, bulk_opr_inp_json, _  # pyright: ignore
+):
     """Ensure every replica created or updated by bulk upload has a checksum.
 
     If neither BulkOpInp.regChksum nor BulkOpInp.verifyChksum exist, calculate
@@ -84,7 +85,7 @@ def async_api_bulk_data_obj_put_post(ctx, _instance, _comm, bulk_opr_inp_json, _
     return res
 
 
-rule.make(inputs=[0,1,2,3])
+@rule.make(inputs=[0,1,2,3])
 def pep_api_data_obj_copy_post(ctx, _instance, _comm, data_obj_copy_inp, _):  # pyright: ignore
     """Ensure every replica created or updated by copying has a checksum.
 
@@ -105,10 +106,8 @@ def pep_api_data_obj_copy_post(ctx, _instance, _comm, data_obj_copy_inp, _):  # 
         ctx, str(dest_obj.objPath), irods_extra.value(dest_opts, 'resc_hier'))
 
 
-rule.make(inputs=[0,1,2,3], outputs=[5])
-def pep_api_data_obj_put_post(
-    ctx, _instance, _comm, data_obj_inp, _data_obj_inp_b_buf, _  # pyright: ignore
-):
+@rule.make(inputs=[0,1,2,3], outputs=[4])
+def pep_api_data_obj_put_post(ctx, _instance, _comm, data_obj_inp, _):  # pyright: ignore
     """Ensure every replica created or updated by uploading has a checksum.
 
     If neither DataObjInp.regChksum nor DataObjInp.verifyChksum exist,
@@ -126,7 +125,7 @@ def pep_api_data_obj_put_post(
         ctx, str(data_obj_inp.objPath), irods_extra.value(opts, 'resc_hier'))
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_phy_path_reg_post(ctx, _instance, _, phy_path_reg_inp):  # pyright: ignore
     """Ensure every replica added through registration has a checksum.
 
@@ -149,7 +148,7 @@ def pep_api_phy_path_reg_post(ctx, _instance, _, phy_path_reg_inp):  # pyright: 
         irods_extra.value(opts, 'resc_hier'))
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_touch_post(ctx, _instance, _, json_input):  # pyright: ignore
     """Ensure every replica created through touching has a checksum.
 
@@ -192,7 +191,7 @@ def pep_api_touch_post(ctx, _instance, _, json_input):  # pyright: ignore
 __write_props = {}
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_create_post(_ctx, _instance, _, data_obj_inp):  # pyright: ignore
     """Ensure every data object added through creation has a checksum.
 
@@ -209,7 +208,7 @@ def pep_api_data_obj_create_post(_ctx, _instance, _, data_obj_inp):  # pyright: 
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_open_post(_ctx, _instance, _, data_obj_inp):  # pyright: ignore
     """Ensure every data object created or modified by opening has a checksum.
 
@@ -238,8 +237,8 @@ def pep_api_data_obj_open_post(_ctx, _instance, _, data_obj_inp):  # pyright: ig
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2], outputs=[3])
-def pep_api_replica_open_post(_ctx, _instance, _comm, data_obj_inp, _):  # pyright: ignore
+@rule.make(inputs=[0,1,2], outputs=[3])
+def pep_api_replica_open_post(_ctx, _instance, _, data_obj_inp):  # pyright: ignore
     """Ensure a replica created or modified through replica API has checksum.
 
     When replica_open is called, store DataObjInp.destRescName and
@@ -264,7 +263,7 @@ def pep_api_replica_open_post(_ctx, _instance, _comm, data_obj_inp, _):  # pyrig
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2,3])
+@rule.make(inputs=[0,1,2,3])
 def pep_api_data_obj_write_post(
     _ctx, _instance, _comm, _data_obj_write_inp, _  # pyright: ignore
 ):
@@ -273,7 +272,7 @@ def pep_api_data_obj_write_post(
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_close_post(ctx, _instance, _comm, _):  # pyright: ignore
     """See data_obj_create and data_obj_open for more details."""
     if 'data_path' not in __write_props:
@@ -286,14 +285,14 @@ def pep_api_data_obj_close_post(ctx, _instance, _comm, _):  # pyright: ignore
         ctx, __write_props['data_path'], __write_props['resc_hier'])
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_data_obj_close_finally(_ctx, _instance, _comm, _):  # pyright: ignore
     """Reset __write_props in case it's needed again in the current session."""
     __write_props.clear()
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_replica_close_post(ctx, _instance, _, json_input):  # pyright: ignore
     """See replica_open for details."""
     if __write_props['needs_checksum']:
@@ -306,7 +305,7 @@ def pep_api_replica_close_post(ctx, _instance, _, json_input):  # pyright: ignor
     return irods_extra.SUCCESS
 
 
-rule.make(inputs=[0,1,2])
+@rule.make(inputs=[0,1,2])
 def pep_api_replica_close_post(ctx, _instance, _comm, _):  # pyright: ignore
     """Reset __write_props in case it's needed again in this session."""
     __write_props.clear()
