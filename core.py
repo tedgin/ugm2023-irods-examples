@@ -16,6 +16,7 @@ import service
 # required for delayExec executions
 from replication import replicate, sync_replicas  # pyright: ignore
 
+from yoda import rule
 
 _RE_DONE = 0
 
@@ -132,7 +133,10 @@ def async_api_bulk_data_obj_put_post(): pass
 
 # NOTE: https://github.com/irods/irods/issues/7110  bulk_data_obj_put is broken
 #       when the forceFlag is set. It's scheduled to be fixed in iRODS 4.3.1.
-def pep_api_bulk_data_obj_put_post(rule_args, cb, _):
+@rule.make(inputs=[0,1,2,3])
+def pep_api_bulk_data_obj_put_post(
+    ctx, instance, comm, bulk_opr_inp, bulk_opr_inp_b_buf
+):
     """Compose rules that bind to the PEP pep_api_bulk_data_obj_put_post.
 
     Asynchronously, execute these rules in the order provided in the function

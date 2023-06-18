@@ -10,23 +10,25 @@ import irods_errors  # type: ignore
 import session_vars  # type: ignore
 
 import irods_extra
+import rule
 
 
 _SVC_TYPE = 'ds-service'
 
 
-def acCreateUser(_, cb, rei):
+@rule.make()
+def acCreateUser(ctx):
     """Create a service type account."""
-    user_type = session_vars.get_map(rei).get('other_user').get('user_type')
+    user_type = session_vars.get_map(ctx.rei).get('other_user').get('user_type')
 
     if user_type == _SVC_TYPE:
-        res = cb.msiCreateUser()
+        res = ctx.msiCreateUser()
 
         if not res['status']:
-            cb.msiRollback()
+            ctx.msiRollback()
             return res['code']
 
-        cb.msiCommit()
+        ctx.msiCommit()
         return irods_extra.SUCCESS
 
     return irods_errors.RULE_ENGINE_CONTINUE
