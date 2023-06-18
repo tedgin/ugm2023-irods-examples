@@ -2,7 +2,6 @@
 
 """CyVerse-wide data policy."""
 
-import inspect
 import json
 
 import irods_errors  # type: ignore
@@ -21,97 +20,57 @@ from replication import replicate, sync_replicas  # pyright: ignore
 _RE_DONE = 0
 
 
-def _compose_rules(
-    rule_bases, rule_args, callback, rei,
+def _compose(
+    rule_bases,
     success_resp=irods_errors.RULE_ENGINE_CONTINUE,
     fail_resp=_RE_DONE,
     cont_on_fail=False
 ):
-    rule_name = inspect.currentframe().f_back.f_code.co_name
-    resp = success_resp
+    def decorate(pep):
+        def impl(*args):
+            resp = success_resp
 
-    for base in rule_bases:
-        res = getattr(base, rule_name)(rule_args, callback, rei)
+            for base in rule_bases:
+                res = getattr(base, pep.__name__)(*args)
 
-        if res < irods_extra.SUCCESS:
-            if resp == success_resp:
-                resp = fail_resp if fail_resp else res
+                if res < irods_extra.SUCCESS:
+                    if resp == success_resp:
+                        resp = fail_resp if fail_resp else res
 
-            if not cont_on_fail:
-                break
+                    if not cont_on_fail:
+                        break
 
-    return resp
-
-
-def acCreateUser(*args):
-    """Compose rules that bind to the PEP acCreateUser.
-
-    Execute all the rules that bind to this PEP in the order provided. If all
-    of them succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule
-    engines can apply policy.
-    """
-    return _compose_rules([service], *args, fail_resp=None, cont_on_fail=True)
+            return resp
+        return impl
+    return decorate
 
 
-def acSetRescSchemeForCreate(*args):
-    """Compose rules that bind to the PEP acSetRescSchemeForCreate.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    the first one fails, and return its error code to the rule engine. If all
-    of them succeed, return 0 (DONE) to the rule engine to let it know that no
-    other rule engines need to be tried.
-    """
-    return _compose_rules(
-        [residency], *args, success_resp=_RE_DONE, fail_resp=None)
+@_compose([service], fail_resp=None, cont_on_fail=True)
+def acCreateUser(): pass
 
 
-def acSetRescSchemeForRepl(*args):
-    """Compose rules that bind to the PEP acSetRescSchemeForCrate."""
-    return _compose_rules([residency], *args)
+@_compose([residency], success_resp=_RE_DONE, fail_resp=None)
+def acSetRescSchemeForCreate(): pass
 
 
-def pep_api_data_obj_copy_post(*args):
-    """Compose rules that bind to the PEP pep_api_data_obj_copy_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    the first one fails, and return 0 (DONE) to the rule engine to let it know
-    that no other rule engines should be tried. If all rules succeed, return
-    RULE_ENGINE_CONTINUE, so that subsequent rule engines can apply policy.
-    """
-    return _compose_rules([checksum, replication], *args)
+@_compose([residency])
+def acSetRescSchemeForRepl(): pass
 
 
-def pep_api_data_obj_put_post(*args):
-    """Compose rules that bind to the PEP pep_api_data_obj_put_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    the first one fails, and return 0 (DONE) to the rule engine to let it know
-    that no other rule engines should be tried. If all rules succeed, return
-    RULE_ENGINE_CONTINUE, so that subsequent rule engines can apply policy.
-    """
-    return _compose_rules([checksum, replication], *args)
+@_compose([checksum, replication])
+def pep_api_data_obj_copy_post(): pass
 
 
-def pep_api_phy_path_reg_post(*args):
-    """Compose rules that bind to the PEP pep_api_phy_path_reg_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    the first one fails, and return 0 (DONE) to the rule engine to let it know
-    that no other rule engines should be tried. If all rules succeed, return
-    RULE_ENGINE_CONTINUE, so that subsequent rule engines can apply policy.
-    """
-    return _compose_rules([checksum, replication], *args)
+@_compose([checksum, replication])
+def pep_api_data_obj_put_post(): pass
 
 
-def pep_api_touch_post(*args):
-    """Compose rules that bind to the PEP pep_api_touch_post.
+@_compose([checksum, replication])
+def pep_api_phy_path_reg_post(): pass
 
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    the first one fails, and return 0 (DONE) to the rule engine to let it know
-    that no other rule engines should be tried. If all rules succeed, return
-    RULE_ENGINE_CONTINUE, so that subsequent rule engines can apply policy.
-    """
-    return _compose_rules([checksum, replication], *args)
+
+@_compose([checksum, replication])
+def pep_api_touch_post(): pass
 
 
 #
@@ -120,15 +79,8 @@ def pep_api_touch_post(*args):
 #
 
 
-def pep_api_data_obj_create_post(*args):
-    """Compose rules that bind to the PEP pep_api_data_obj_create_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    first one fails, and return its error code to the rule engine. If all rules
-    succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule engines can
-    apply policy.
-    """
-    return _compose_rules([checksum, replication], *args, fail_resp=None)
+@_compose([checksum, replication], fail_resp=None)
+def pep_api_data_obj_create_post(): pass
 
 
 # NOTE: data_obj_create_and_stat isn't used by iCommands or any official API,
@@ -139,96 +91,43 @@ def pep_api_data_obj_create_post(*args):
 # NOTE: data_obj_open, data_obj_write, and data_obj_close are used together
 
 
-def pep_api_data_obj_open_post(*args):
-    """Compose rules that bind to the PEP pep_api_data_obj_open_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    first one fails, and return its error code to the rule engine. If all rules
-    succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule engines can
-    apply policy.
-    """
-    return _compose_rules([checksum, replication], *args, fail_resp=None)
+@_compose([checksum, replication], fail_resp=None)
+def pep_api_data_obj_open_post(): pass
 
 
 # NOTE: replica_open, data_obj_write, and replica_closed are used together
 
 
-def pep_api_replica_open_post(*args):
-    """Compose rules that bind to the PEP pep_api_replica_open_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    first one fails, and return its error code to the rule engine. If all rules
-    succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule engines can
-    apply policy.
-    """
-    return _compose_rules([checksum, replication], *args, fail_resp=None)
+@_compose([checksum, replication], fail_resp=None)
+def pep_api_replica_open_post(): pass
 
 
-def pep_api_data_obj_write_post(*args):
-    """Compose rules that bind to the PEP pep_api_data_obj_write_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    first one fails, and return its error code to the rule engine. If all rules
-    succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule engines can
-    apply policy.
-    """
-    return _compose_rules([checksum, replication], *args, fail_resp=None)
+@_compose([checksum, replication], fail_resp=None)
+def pep_api_data_obj_write_post(): pass
 
 
-def pep_api_data_obj_close_post(*args):
-    """Compose rules that bind to the PEP pep_api_data_obj_close_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    the first one fails, and return 0 (DONE) to the rule engine to let it know
-    that no other rule engines should be tried. If all rules succeed, return
-    RULE_ENGINE_CONTINUE, so that subsequent rule engines can apply policy.
-    """
-    return _compose_rules([checksum, replication], *args)
+@_compose([checksum, replication])
+def pep_api_data_obj_close_post(): pass
 
 
-def pep_api_data_obj_close_finally(*args):
-    """Compose rules that bind to the PEP pep_api_data_obj_close_finally.
-
-    Execute the rules that bind to this PEP in the order provided. If all rules
-    succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule engines can
-    apply policy. Otherwise, return the error code of the first rule that
-    failed.
-    """
-    return _compose_rules(
-        [checksum, replication], *args,
-        fail_resp=irods_errors.RULE_ENGINE_CONTINUE,
-        cont_on_fail=True)
+@_compose(
+    [checksum, replication],
+    fail_resp=irods_errors.RULE_ENGINE_CONTINUE, cont_on_fail=True)
+def pep_api_data_obj_close_finally(): pass
 
 
-def pep_api_replica_close_post(*args):
-    """Compose rules that bind to the PEP pep_api_replica_close_post.
-
-    Execute the rules that bind to this PEP in the order provided. Stop when
-    the first one fails, and return 0 (DONE) to the rule engine to let it know
-    that no other rule engines should be tried. If all rules succeed, return
-    RULE_ENGINE_CONTINUE, so that subsequent rule engines can apply policy.
-    """
-    return _compose_rules([checksum, replication], *args)
+@_compose([checksum, replication])
+def pep_api_replica_close_post(): pass
 
 
-def pep_api_replica_close_finally(*args):
-    """Compose rules that bind to the PEP pep_api_replica_close_finally.
-
-    Execute the rules that bind to this PEP in the order provided. If all rules
-    succeed, return RULE_ENGINE_CONTINUE, so that subsequent rule engines can
-    apply policy. Otherwise, return the error code of the first rule that
-    failed.
-    """
-    return _compose_rules(
-        [checksum, replication], *args,
-        fail_resp=irods_errors.RULE_ENGINE_CONTINUE,
-        cont_on_fail=True)
+@_compose(
+    [checksum, replication],
+    fail_resp=irods_errors.RULE_ENGINE_CONTINUE, cont_on_fail=True)
+def pep_api_replica_close_finally(): pass
 
 
-def async_api_bulk_data_obj_put_post(*args):
-    """See bulk_data_obj_put for details."""
-    return _compose_rules(
-        [checksum, replication], *args, success_resp=_RE_DONE)
+@_compose([checksum, replication], success_resp=_RE_DONE)
+def async_api_bulk_data_obj_put_post(): pass
 
 
 # NOTE: https://github.com/irods/irods/issues/7110  bulk_data_obj_put is broken
@@ -327,10 +226,6 @@ def pep_api_bulk_data_obj_put_post(rule_args, cb, _):
         'user_user_type':                       str
     }
     """
-    instance = rule_args[0]
-    comm = rule_args[1]
-    bulk_opr_inp = rule_args[2]
-    bulk_opr_inp_b_buf = rule_args[3]
     attris = bulk_opr_inp.attriArray
 
     boi_map = {
@@ -351,9 +246,9 @@ def pep_api_bulk_data_obj_put_post(rule_args, cb, _):
             'len': attris.sqlResult[a].len,
             'row': [attris.sqlResult[a].row(r) for r in range(attris.rowCnt)]})
 
-    for i in range(rule_args[2].condInput.len):
-        boi_map['condInput'][str(rule_args[2].condInput.key[i])] = (
-            str(rule_args[2].condInput.value[i]))
+    for i in range(bulk_opr_inp.condInput.len):
+        boi_map['condInput'][str(bulk_opr_inp.condInput.key[i])] = (
+            str(bulk_opr_inp.condInput.value[i]))
 
     cond_fmt = (
         "<INST_NAME>irods_rule_engine_plugin-python-instance</INST_NAME>"
@@ -370,7 +265,7 @@ def pep_api_bulk_data_obj_put_post(rule_args, cb, _):
         json.dumps(boi_map),
         str(bulk_opr_inp_b_buf.buf))
 
-    cb.delayExec(cond, rule, "")
+    ctx.delayExec(cond, rule, "")
     return irods_errors.RULE_ENGINE_CONTINUE
 
 
